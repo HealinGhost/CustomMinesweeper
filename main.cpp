@@ -4,31 +4,37 @@
 // Sweeper configuration
 const int X = 8;
 const int Y = 8;
-const int bombs = 10;
+const int bombConstant = 10;
+const int uiSpace = 50;
 
 
 void sweeper_generation(int minesweep[X][Y], int bombs);
 void open_square(int showsquare[X][Y], int minesweep[X][Y], int x, int y);
+void clearTheField(int Array2d[X][Y]);
 
 
 // Main
 int main()
 {
 
-    sf::RenderWindow window(sf::VideoMode(400, 400), "Minesweeper!");
+    sf::RenderWindow window(sf::VideoMode(400, 450), "Minesweeper!");
 
     //Minesweeper square
     sf::RectangleShape MinesweeperSquare(sf::Vector2f(50.0f, 50.0f));
+    sf::RectangleShape Ui(sf::Vector2f(400, float(uiSpace)));
     
     //Textures
-    sf::Texture MineSquare;
-    MineSquare.loadFromFile("Sprites/SingleSquare1.png");
-    MinesweeperSquare.setTexture(&MineSquare);
-    float SquareSize =  MineSquare.getSize().x / 12.0f;
+    sf::Texture MineSquareSprite;
+    sf::Texture UiSprite;
+    MineSquareSprite.loadFromFile("Sprites/SingleSquare1.png");
+    UiSprite.loadFromFile("Sprites/ui.png");
+    MinesweeperSquare.setTexture(&MineSquareSprite);
+    Ui.setTexture(&UiSprite);
+    float SquareSize =  MineSquareSprite.getSize().x / 12.0f;
     
     int minesweep[8][8] = {0};
     int showSquare[8][8] = {0};
-    sweeper_generation(minesweep, bombs);
+    sweeper_generation(minesweep, bombConstant);
 
     while (window.isOpen())
     {
@@ -42,36 +48,55 @@ int main()
                     break;
                     // Event when one of the mouse button is pressed
                 case sf::Event::MouseButtonPressed:
-                    if(evnt.mouseButton.button == sf::Mouse::Left)
+                    // Event when mouse Button is pressed not in the Ui
+                    if(evnt.mouseButton.y >= uiSpace)
                     {
-                        if(showSquare[evnt.mouseButton.x / 50][evnt.mouseButton.y / 50] != 2)
+                        if(evnt.mouseButton.button == sf::Mouse::Left)
                         {
-                            open_square(showSquare, minesweep, evnt.mouseButton.x / 50, evnt.mouseButton.y / 50);
+                            if(showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] != 2)
+                            {
+                                open_square(showSquare, minesweep, evnt.mouseButton.x / 50, (evnt.mouseButton.y - uiSpace) / 50);
+                            }
+                        }
+                        else if(evnt.mouseButton.button == sf::Mouse::Right)
+                        {
+                            if(showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] == 0)
+                            {
+                                showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] = 2;
+                            }
+                            else if(showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] == 2)
+                            {
+                                showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] = 0;
+                            }
                         }
                     }
-                    else if(evnt.mouseButton.button == sf::Mouse::Right)
+                    // When mouse button is pressed in the Ui
+                    else
                     {
-                        if(showSquare[evnt.mouseButton.x / 50][evnt.mouseButton.y / 50] == 0)
+                        if(evnt.mouseButton.button == sf::Mouse::Left)
                         {
-                            showSquare[evnt.mouseButton.x / 50][evnt.mouseButton.y / 50] = 2;
-                        }
-                        else if(showSquare[evnt.mouseButton.x / 50][evnt.mouseButton.y / 50] == 2)
-                        {
-                            showSquare[evnt.mouseButton.x / 50][evnt.mouseButton.y / 50] = 0;
+                            if(evnt.mouseButton.x >= 350)
+                            {
+                                // Hides all of the squares
+                                clearTheField(showSquare);
+                                
+                                //Generate new layout
+                                sweeper_generation(minesweep, bombConstant);
+                            }
                         }
                     }
-                    break;
-            }
+                break;        
+            }   
         }
 
 
         window.clear();
-        
+        window.draw(Ui);
         for(int i = 0; i < 8; i++){
             for (int j = 0; j < 8; j++){
                 
                 // If the square has been open, than show it
-                MinesweeperSquare.setPosition(50.0f * i, 50.0f * j);
+                MinesweeperSquare.setPosition(50.0f * i, (50.0f * j) + uiSpace);
                 if (showSquare[i][j] == 1)
                 {
                     MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * minesweep[i][j], 0, 8, 8));
@@ -96,7 +121,11 @@ int main()
 
 // Generation for minesweeper tilebox
 void sweeper_generation(int minesweep[X][Y], int bombs)
-{   
+{
+
+    // Making sure that the field is cleared
+    clearTheField(minesweep);
+
     // Bomb generation
     while(bombs > 0)
     {
@@ -218,6 +247,19 @@ void open_square(int showsquare[X][Y], int minesweep[X][Y], int x, int y)
         if(y - 1 >= 0 && x - 1 >= 0 && showsquare[x - 1][y - 1] == 0)
         {
             open_square(showsquare, minesweep, x - 1, y - 1);
+        }
+    }
+    return;
+}
+
+// Turns all of the arrays positions into 0
+void clearTheField(int Array2d[X][Y])
+{
+    for(int i = 0; i < X; i++)
+    {
+        for(int j = 0; j < Y; j++)
+        {
+            Array2d[i][j] = 0;
         }
     }
     return;
