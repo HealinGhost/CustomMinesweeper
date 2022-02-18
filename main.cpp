@@ -2,40 +2,40 @@
 #include <iostream>
 
 // Sweeper configuration
-const int X = 8;
-const int Y = 8;
-const int bombConstant = 10;
+const int bombConstant = 8;
 const int uiSpace = 50;
 
-
-void sweeper_generation(int minesweep[X][Y], int bombs);
-void open_square(int showsquare[X][Y], int minesweep[X][Y], int x, int y);
-void clearTheField(int Array2d[X][Y]);
+void sweeper_generation(int minesweep[], int bombs, int avoidSquare);
+void open_square(int showsquare[], int minesweep[], int &remSquares, int pos);
+void clearTheField(int Array[]);
 
 
 // Main
 int main()
 {
-
-    sf::RenderWindow window(sf::VideoMode(400, 450), "Minesweeper!");
+    sf::RenderWindow window(sf::VideoMode(400, 450), "Minesweeper!", sf::Style::Titlebar | sf::Style::Close);
 
     //Minesweeper square
     sf::RectangleShape MinesweeperSquare(sf::Vector2f(50.0f, 50.0f));
     sf::RectangleShape Ui(sf::Vector2f(400, float(uiSpace)));
+    sf::RectangleShape CounterNumber(sf::Vector2f(25.0f, 50.0f));
     
     //Textures
     sf::Texture MineSquareSprite;
     sf::Texture UiSprite;
+    sf::Texture GreenNumberSprite;
     MineSquareSprite.loadFromFile("Sprites/SingleSquare1.png");
     UiSprite.loadFromFile("Sprites/ui.png");
+    GreenNumberSprite.loadFromFile("Sprites/GreenNumbers.png");
     MinesweeperSquare.setTexture(&MineSquareSprite);
     Ui.setTexture(&UiSprite);
-    float SquareSize =  MineSquareSprite.getSize().x / 12.0f;
-    
-    int minesweep[8][8] = {0};
-    int showSquare[8][8] = {0};
-    sweeper_generation(minesweep, bombConstant);
-
+    CounterNumber.setTexture(&GreenNumberSprite);
+    float SquareSize =  MineSquareSprite.getSize().x / 12.0f; // a single minesweeper square size
+    int remSquares = 64 - bombConstant; // Integer counting the remaining squares
+    bool gameOver = false; // Bool that defines if the game should be stopped
+    bool minesweepIsEmpty = true; // Bool that defines if the minesweeper has not been generated
+    int minesweep[64] = {0}; // Array responsible for storring square information, such as( bomb/how many bombs next to it)
+    int showSquare[64] = {0}; // Array defining if a particular square should be oppened
     while (window.isOpen())
     {
         sf::Event evnt;
@@ -53,20 +53,31 @@ int main()
                     {
                         if(evnt.mouseButton.button == sf::Mouse::Left)
                         {
-                            if(showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] != 2)
+                            // Generates the field in such a way that the first square will never be a bomb
+                            if(minesweepIsEmpty)
                             {
-                                open_square(showSquare, minesweep, evnt.mouseButton.x / 50, (evnt.mouseButton.y - uiSpace) / 50);
+                                sweeper_generation(minesweep, bombConstant, (evnt.mouseButton.x / 50) + (evnt.mouseButton.y - uiSpace) / 50 * 8);
+                                minesweepIsEmpty = false;
+                            }
+                            if(showSquare[(evnt.mouseButton.x / 50) + (evnt.mouseButton.y - uiSpace) / 50 * 8] != 2 && gameOver == false)
+                            {
+                                open_square(showSquare, minesweep, remSquares, (evnt.mouseButton.x / 50) + (evnt.mouseButton.y - uiSpace) / 50 * 8);
+                                if(minesweep[(evnt.mouseButton.x / 50) + (evnt.mouseButton.y - uiSpace) / 50 * 8] == 9)
+                                {
+                                    gameOver = true;
+                                }
                             }
                         }
-                        else if(evnt.mouseButton.button == sf::Mouse::Right)
+                        // Placing flags
+                        else if(evnt.mouseButton.button == sf::Mouse::Right && gameOver == false)
                         {
-                            if(showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] == 0)
+                            if(showSquare[evnt.mouseButton.x / 50 + (evnt.mouseButton.y - uiSpace) / 50 * 8] == 0)
                             {
-                                showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] = 2;
+                                showSquare[evnt.mouseButton.x / 50 + (evnt.mouseButton.y - uiSpace) / 50 * 8] = 2;
                             }
-                            else if(showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] == 2)
+                            else if(showSquare[evnt.mouseButton.x / 50 + (evnt.mouseButton.y - uiSpace) / 50 * 8] == 2)
                             {
-                                showSquare[evnt.mouseButton.x / 50][(evnt.mouseButton.y - uiSpace) / 50] = 0;
+                                showSquare[evnt.mouseButton.x / 50 + (evnt.mouseButton.y - uiSpace) / 50 * 8] = 0;
                             }
                         }
                     }
@@ -75,13 +86,13 @@ int main()
                     {
                         if(evnt.mouseButton.button == sf::Mouse::Left)
                         {
+                            //Restart button
                             if(evnt.mouseButton.x >= 350)
                             {
-                                // Hides all of the squares
-                                clearTheField(showSquare);
-                                
-                                //Generate new layout
-                                sweeper_generation(minesweep, bombConstant);
+                                gameOver = false;
+                                remSquares = 64 - bombConstant; // Resets the counter
+                                clearTheField(showSquare);// Hides all of the squares
+                                minesweepIsEmpty = true; // Set the bool to true,cause the array needs to be refreshed
                             }
                         }
                     }
@@ -91,28 +102,36 @@ int main()
 
 
         window.clear();
+
+        //Drawing the UI
         window.draw(Ui);
-        for(int i = 0; i < 8; i++){
-            for (int j = 0; j < 8; j++){
+        CounterNumber.setTextureRect(sf::IntRect(SquareSize * (remSquares / 10), 0, 8, 8));
+        CounterNumber.setPosition(0,0);
+        window.draw(CounterNumber);
+        CounterNumber.setTextureRect(sf::IntRect(SquareSize * (remSquares % 10), 0, 8, 8));
+        CounterNumber.setPosition(25.0f, 0);
+        window.draw(CounterNumber);
+
+
+        // Drawing the minesweeper layout
+        for(int i = 0; i < 64; i++){
                 
-                // If the square has been open, than show it
-                MinesweeperSquare.setPosition(50.0f * i, (50.0f * j) + uiSpace);
-                if (showSquare[i][j] == 1)
-                {
-                    MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * minesweep[i][j], 0, 8, 8));
-                }
-                // If the square hasnt been opened yet, show closed square
-                else if(showSquare[i][j] == 2)
-                {
-                    MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * 10, 0, 8, 8));
-                }
-                else
-                {
-                    MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * 11, 0, 8, 8));
-                }
-                
-                window.draw(MinesweeperSquare);
+            // If the square has been open, than show it
+            MinesweeperSquare.setPosition(50.0f * (i % 8), (50.0f * (i / 8)) + uiSpace);
+            if (showSquare[i] == 1)
+            {
+                MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * minesweep[i], 0, 8, 8));
             }
+            // If the square hasnt been opened yet, show closed square
+            else if(showSquare[i] == 2)
+            {
+                MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * 10, 0, 8, 8));
+            }
+            else
+            {
+                MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * 11, 0, 8, 8));
+            }
+            window.draw(MinesweeperSquare);
         }
         window.display();
     }
@@ -120,147 +139,144 @@ int main()
 }
 
 // Generation for minesweeper tilebox
-void sweeper_generation(int minesweep[X][Y], int bombs)
+void sweeper_generation(int minesweep[], int bombs, int avoidSquare)
 {
-
-    // Making sure that the field is cleared
-    clearTheField(minesweep);
+    
+    clearTheField(minesweep); // Turns every square into 0
 
     // Bomb generation
     while(bombs > 0)
     {
-        for(int i = 0; i < X; i++)
+        for(int i = 0; i < 64; i++)
         {
-            for(int j = 0; j < Y; j++)
+            // Modulus 16 produced 16 different options and 0 means that the square is empty
+            if(std::rand() % 16 == 0 && minesweep[i] == 0 && bombs > 0 && i != avoidSquare)
             {
-                // Modulus 16 produced 16 different options and 0 means that the square is empty
-                if(std::rand() % 16 == 0 && minesweep[i][j] == 0 && bombs > 0)
-                {
-                    minesweep[i][j] = 9;
-                    bombs--;
-                }
+                minesweep[i] = 9;
+                bombs--;
             }
         }
     }
     // Number generation
-    for(int i = 0; i < X; i++)
+    for(int i = 0; i < 64; i++)
     {
-        for(int j = 0; j < Y; j++)
+        int counter;
+        // If the square is not a bomb count the squares
+        if(minesweep[i] != 9)
         {
-            int counter;
-            // If the square is not a bomb count the squares
-            if(minesweep[i][j] != 9)
+            counter = 0;
+            //Left
+            if(i - 1 >= 0 && minesweep[i - 1] == 9 && i % 8 != 0)
             {
-                counter = 0;
-                //Left
-                if(i - 1 >= 0 && minesweep[i - 1][j] == 9)
-                {
-                    counter++;
-                }
-                //Right
-                if(i + 1 < X && minesweep[i + 1][j] == 9)
-                {
-                    counter++;
-                }
-                //Down
-                if(j - 1 >= 0 && minesweep[i][j - 1] == 9)
-                {
-                    counter++;
-                }
-                //Up
-                if(j + 1 < Y && minesweep[i][j + 1] == 9)
-                {
-                    counter++;
-                }
-                //Up right
-                if(j + 1 < Y && i + 1 < X && minesweep[i + 1][j + 1] == 9)
-                {
-                    counter++;
-                }
-                
-                //Up left
-                if(j + 1 < Y && i - 1 >= 0 && minesweep[i - 1][j + 1] == 9)
-                {
-                    counter++;
-                }
-
-                //Down right
-                if(j - 1 >= 0 && i + 1 < X && minesweep[i + 1][j - 1] == 9)
-                {
-                    counter++;
-                }
-                //Down left
-                if(j - 1 >= 0 && i - 1 >= 0 && minesweep[i - 1][j - 1] == 9)
-                {
-                    counter++;
-                }
-                minesweep[i][j] = counter;
+                counter++;
             }
+            //Right
+            if(i + 1 < 64 && minesweep[i + 1] == 9 && i % 8 != 7)
+            {
+                counter++;
+            }
+            //Down
+            if(i + 8 < 64 && minesweep[i + 8] == 9)
+            {
+                counter++;
+            }
+            //Up
+            if(i - 8 >= 0 && minesweep[i - 8] == 9)
+            {
+                counter++;
+            }
+            //Up right
+            if(i - 7 >= 0 &&  i % 8 != 7 && minesweep[i - 7] == 9)
+            {
+                counter++;
+            }
+            //Up left
+            if(i - 9 >= 0 && i % 8 != 0 && minesweep[i - 9] == 9)
+            {
+                counter++;
+            }
+            //Down right
+            if(i + 9 < 64 && i % 8 != 7 && minesweep[i + 9] == 9)
+            {
+                 counter++;
+            }
+            //Down left
+            if(i + 7 < 64 && i % 8 != 0 && minesweep[i + 7] == 9)
+            {
+                counter++;
+            }
+            minesweep[i] = counter;
         }
     }
     return;
 }
 
 // Function, defining what happens, when a square is opened
-void open_square(int showsquare[X][Y], int minesweep[X][Y], int x, int y)
+void open_square(int showsquare[], int minesweep[], int &remSquares, int pos)
 {
-    showsquare[x][y] = 1;
+    if(showsquare[pos] != 1)
+    {
+        showsquare[pos] = 1;
+        // if not bomb, then do not lower the remainign square counter.
+        if(minesweep[pos] != 9)
+        {
+            remSquares--;
+        }
+    }
+    
     // If a square was blank, it opens all the square next to it
-    if(minesweep[x][y] == 0)
+    if(minesweep[pos] == 0)
     {
         //Left
-        if(x - 1 >= 0 && showsquare[x - 1][y] == 0)
+        if(pos % 8 != 0 && showsquare[pos - 1] == 0)
         {
-            open_square(showsquare, minesweep, x - 1, y);
+            open_square(showsquare, minesweep, remSquares, pos - 1);
         }
         //Right
-        if(x + 1 < X && showsquare[x + 1][y] == 0)
+        if(pos % 8 != 7 && showsquare[pos + 1] == 0)
         {
-            open_square(showsquare, minesweep, x + 1, y);
+            open_square(showsquare, minesweep, remSquares, pos + 1);
         }
         //Down
-        if(y - 1 >= 0 && showsquare[x][y - 1] == 0)
+        if(pos + 8 < 64 && showsquare[pos + 8] == 0)
         {
-            open_square(showsquare, minesweep, x, y - 1);
+            open_square(showsquare, minesweep, remSquares, pos + 8);
         }
         //Up
-        if(y + 1 < Y && showsquare[x][y + 1] == 0)
+        if(pos - 8 >= 0 && showsquare[pos - 8] == 0)
         {
-            open_square(showsquare, minesweep, x, y + 1);
+            open_square(showsquare, minesweep, remSquares, pos - 8);
         }
         //Up right
-        if(y + 1 < Y && x + 1 < X && showsquare[x + 1][y + 1] == 0)
+        if(pos % 8 != 7 && pos - 7 >= 0 && showsquare[pos - 7] == 0)
         {
-            open_square(showsquare, minesweep, x + 1, y + 1);
+            open_square(showsquare, minesweep, remSquares, pos - 7);
         }      
         //Up left
-        if(y + 1 < Y && x - 1 >= 0 && showsquare[x - 1][y + 1] == 0)
+        if(pos % 8 != 0 && pos - 9 >= 0 && showsquare[pos - 9] == 0)
         {
-            open_square(showsquare, minesweep, x - 1, y + 1);
+            open_square(showsquare, minesweep, remSquares, pos - 9);
         }
         //Down right
-        if(y - 1 >= 0 && x + 1 < X && showsquare[x + 1][y - 1] == 0)
+        if(pos % 8 != 7 && pos + 9 < 64 && showsquare[pos + 9] == 0)
         {
-            open_square(showsquare, minesweep, x + 1, y - 1);
+            open_square(showsquare, minesweep, remSquares, pos + 9);
         }
         //Down left
-        if(y - 1 >= 0 && x - 1 >= 0 && showsquare[x - 1][y - 1] == 0)
+        if(pos % 8 != 0 && pos + 7 < 64 && showsquare[pos + 7] == 0)
         {
-            open_square(showsquare, minesweep, x - 1, y - 1);
+            open_square(showsquare, minesweep, remSquares, pos + 7);
         }
     }
     return;
 }
 
 // Turns all of the arrays positions into 0
-void clearTheField(int Array2d[X][Y])
+void clearTheField(int Array[])
 {
-    for(int i = 0; i < X; i++)
+    for(int i = 0; i < 64; i++)
     {
-        for(int j = 0; j < Y; j++)
-        {
-            Array2d[i][j] = 0;
-        }
+        Array[i] = 0;
     }
     return;
 }
