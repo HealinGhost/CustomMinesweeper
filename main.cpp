@@ -30,12 +30,15 @@ int main()
     MinesweeperSquare.setTexture(&MineSquareSprite);
     Ui.setTexture(&UiSprite);
     CounterNumber.setTexture(&GreenNumberSprite);
+    // Variables
     float SquareSize =  MineSquareSprite.getSize().x / 12.0f; // a single minesweeper square size
     int remSquares = 64 - bombConstant; // Integer counting the remaining squares
     bool gameOver = false; // Bool that defines if the game should be stopped
     bool minesweepIsEmpty = true; // Bool that defines if the minesweeper has not been generated
     int minesweep[64] = {0}; // Array responsible for storring square information, such as( bomb/how many bombs next to it)
+    // minesweep possible values: (0 - square is empty; 1:8 - how many bombs are arround; 9 - bomb square)
     int showSquare[64] = {0}; // Array defining if a particular square should be oppened
+    // showSquare possible values: (0 - square is closed; 1 - square is opened; 2 - square is flagged)
     while (window.isOpen())
     {
         sf::Event evnt;
@@ -122,11 +125,12 @@ int main()
             {
                 MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * minesweep[i], 0, 8, 8));
             }
-            // If the square hasnt been opened yet, show closed square
+            // If the square is a flag
             else if(showSquare[i] == 2)
             {
                 MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * 10, 0, 8, 8));
             }
+            // Closed square
             else
             {
                 MinesweeperSquare.setTextureRect(sf::IntRect(SquareSize * 11, 0, 8, 8));
@@ -217,7 +221,7 @@ void open_square(int showsquare[], int minesweep[], int &remSquares, int pos)
     if(showsquare[pos] != 1)
     {
         showsquare[pos] = 1;
-        // if not bomb, then do not lower the remainign square counter.
+        // if not bomb, then lower the remaining square counter.
         if(minesweep[pos] != 9)
         {
             remSquares--;
